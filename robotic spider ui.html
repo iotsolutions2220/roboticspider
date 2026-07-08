@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta charset="UTF-8">
+    <title>Miaou Quadruped Control</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0e27;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+            top: -250px;
+            right: -250px;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        
+        body::after {
+            content: '';
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 70%);
+            bottom: -200px;
+            left: -200px;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 480px;
+            background: rgba(17, 24, 39, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 32px;
+            padding: 40px 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+                        0 0 0 1px rgba(255, 255, 255, 0.05);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 36px;
+        }
+        
+        .robot-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            display: inline-block;
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        h1 {
+            color: #f9fafb;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+        
+        .subtitle {
+            color: #9ca3af;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .speech-display {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            padding: 20px 24px;
+            border-radius: 20px;
+            text-align: center;
+            font-size: 15px;
+            color: white;
+            font-weight: 600;
+            min-height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            margin-bottom: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .speech-display::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .speech-display.active::before {
+            left: 100%;
+        }
+        
+        .speech-icon {
+            margin-right: 8px;
+            font-size: 18px;
+        }
+        
+        .direction-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-bottom: 32px;
+            max-width: 360px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .control-btn {
+            height: 80px;
+            border: none;
+            border-radius: 20px;
+            font-size: 15px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            user-select: none;
+            touch-action: manipulation;
+            position: relative;
+            overflow: hidden;
+            background: #1f2937;
+        }
+        
+        .control-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.1) 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .control-btn:hover::before {
+            opacity: 1;
+        }
+        
+        .control-btn:active {
+            transform: scale(0.96);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .control-btn .icon {
+            font-size: 24px;
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        .control-btn .label {
+            font-size: 12px;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .forward { 
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            grid-column: 2;
+        }
+        
+        .left { 
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            grid-column: 1;
+            grid-row: 2;
+        }
+        
+        .stop { 
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            grid-column: 2;
+            grid-row: 2;
+            font-size: 16px;
+        }
+        
+        .stop .icon {
+            font-size: 28px;
+        }
+        
+        .right { 
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            grid-column: 3;
+            grid-row: 2;
+        }
+        
+        .backward { 
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            grid-column: 2;
+            grid-row: 3;
+        }
+        
+        .action-section {
+            margin-bottom: 32px;
+        }
+        
+        .section-title {
+            color: #9ca3af;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 14px;
+            text-align: center;
+        }
+        
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+        
+        .action-btn {
+            height: 64px;
+            border: none;
+            border-radius: 18px;
+            font-size: 15px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            user-select: none;
+            touch-action: manipulation;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .action-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.1) 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .action-btn:hover::before {
+            opacity: 1;
+        }
+        
+        .action-btn:active {
+            transform: scale(0.96);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+        }
+        
+        .action-btn .emoji {
+            font-size: 22px;
+        }
+        
+        #handshake-btn {
+            background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+        }
+        
+        #wave-btn {
+            background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+        }
+        
+        .status-bar {
+            background: rgba(31, 41, 55, 0.6);
+            padding: 18px 20px;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        
+        .status-item {
+            text-align: center;
+        }
+        
+        .status-label {
+            color: #6b7280;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        
+        .status-value {
+            color: #f9fafb;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #b91010;
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(185, 16, 16, 0.7); }
+            50% { opacity: 0.8; box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 32px 24px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .robot-icon {
+                font-size: 56px;
+            }
+            
+            .control-btn {
+                height: 72px;
+            }
+            
+            .direction-pad {
+                gap: 12px;
+            }
+            
+            .action-buttons {
+                gap: 12px;
+            }
+            
+            .action-btn {
+                height: 58px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="robot-icon">🕷️</div>
+            <h1>Robotic spider</h1>
+            
+        </div>
+        
+        <div class="speech-display" id="speech-display">
+            <span class="speech-icon">💬</span>
+            <span id="speech-text">Spider ready</span>
+        </div>
+        
+        <div class="direction-pad">
+            <button class="control-btn forward" id="forward-btn">
+                <span class="icon">▲</span>
+                <span class="label">Forward</span>
+            </button>
+            <button class="control-btn left" id="left-btn">
+                <span class="icon">◄</span>
+                <span class="label">Left</span>
+            </button>
+            <button class="control-btn stop" id="stop-btn">
+                <span class="icon">■</span>
+                <span class="label">Stop</span>
+            </button>
+            <button class="control-btn right" id="right-btn">
+                <span class="icon">►</span>
+                <span class="label">Right</span>
+            </button>
+            <button class="control-btn backward" id="backward-btn">
+                <span class="icon">▼</span>
+                <span class="label">Backward</span>
+            </button>
+        </div>
+        
+        <div class="action-section">
+            <div class="section-title">Special Actions</div>
+            <div class="action-buttons">
+                <button class="action-btn" id="handshake-btn">
+                    <span class="emoji">🤝</span>
+                    <span>Handshake</span>
+                </button>
+                <button class="action-btn" id="wave-btn">
+                    <span class="emoji">👋</span>
+                    <span>Wave</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-grid">
+                <div class="status-item">
+                    <div class="status-label">Status</div>
+                    <div class="status-value">
+                        <span class="status-dot"></span>Offline
+                    </div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">IP Address</div>
+                    <div class="status-value">%IPADDR%</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Commands</div>
+                    <div class="status-value" id="cmd-count">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let commandCount = 0;
+        let activeCommand = null;
+        let commandInterval = null;
+        
+        // Initialize Speech Synthesis
+        const synth = window.speechSynthesis;
+        let speechEnabled = true;
+        
+        // Check if speech synthesis is available
+        if (!synth) {
+            console.warn('Speech synthesis not supported in this browser');
+            speechEnabled = false;
+        }
+        
+        const buttons = {
+            forward: document.getElementById('forward-btn'),
+            backward: document.getElementById('backward-btn'),
+            left: document.getElementById('left-btn'),
+            right: document.getElementById('right-btn'),
+            stop: document.getElementById('stop-btn'),
+            handshake: document.getElementById('handshake-btn'),
+            wave: document.getElementById('wave-btn')
+        };
+        
+        const commandMap = {
+            forward: 'F',
+            backward: 'B',
+            left: 'L',
+            right: 'R',
+            stop: 'S',
+            handshake: 'U',
+            wave: 'W'
+        };
+        
+        const speechMap = {
+            forward: ' moving forward!',
+            backward: ' moving backward!',
+            left: 'turning left!',
+            right: 'turning right!',
+            handshake: ' Here\'s a warm handshake!',
+            wave: 'HI! I am robotic spider'
+        };
+        
+        function speak(text) {
+            if (!text) return;
+            
+            // Display the text
+            const display = document.getElementById('speech-display');
+            const textElement = document.getElementById('speech-text');
+            textElement.textContent = text;
+            display.classList.add('active');
+            setTimeout(() => display.classList.remove('active'), 500);
+            
+            // Speak if available
+            if (speechEnabled) {
+                synth.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.0;
+                utterance.pitch = 1.2;
+                utterance.volume = 1.0;
+                synth.speak(utterance);
+            }
+        }
+        
+        // Setup continuous movement buttons
+        ['forward', 'backward', 'left', 'right'].forEach(direction => {
+            buttons[direction].addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                startCommand(commandMap[direction], direction);
+            });
+            
+            buttons[direction].addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                startCommand(commandMap[direction], direction);
+            });
+            
+            buttons[direction].addEventListener('mouseup', stopContinuousCommand);
+            buttons[direction].addEventListener('mouseleave', stopContinuousCommand);
+            buttons[direction].addEventListener('touchend', stopContinuousCommand);
+            buttons[direction].addEventListener('touchcancel', stopContinuousCommand);
+        });
+        
+        // Stop button
+        buttons.stop.addEventListener('click', (e) => {
+            e.preventDefault();
+            sendCommand('S');
+        });
+        
+        // Handshake button
+        buttons.handshake.addEventListener('click', (e) => {
+            e.preventDefault();
+            sendCommand(commandMap.handshake);
+            speak(speechMap.handshake);
+        });
+        
+        // Wave button
+        buttons.wave.addEventListener('click', (e) => {
+            e.preventDefault();
+            sendCommand(commandMap.wave);
+            speak(speechMap.wave);
+        });
+        
+        function startCommand(cmd, direction) {
+            if (activeCommand === cmd) return;
+            
+            stopContinuousCommand();
+            activeCommand = cmd;
+            sendCommand(cmd);
+            
+            // Speak only once when starting movement
+            if (direction && speechMap[direction]) {
+                speak(speechMap[direction]);
+            }
+            
+            // Send command repeatedly for continuous movement
+            commandInterval = setInterval(() => {
+                sendCommand(cmd);
+            }, 200);
+        }
+        
+        function stopContinuousCommand() {
+            if (commandInterval) {
+                clearInterval(commandInterval);
+                commandInterval = null;
+            }
+            if (activeCommand) {
+                sendCommand('S');
+                activeCommand = null;
+            }
+        }
+        
+        function sendCommand(cmd) {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', '/control?cmd=' + encodeURIComponent(cmd), true);
+            xhr.timeout = 1000;
+            
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    commandCount++;
+                    document.getElementById('cmd-count').textContent = commandCount;
+                }
+            };
+            
+            xhr.onerror = function() {
+                console.error('Command failed:', cmd);
+            };
+            
+            xhr.send();
+        }
+        
+        // Prevent page scrolling and zooming
+        document.addEventListener('touchmove', function(e) {
+            if (e.target.tagName === 'BUTTON') {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        // Disable double-tap zoom
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(e) {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+    </script>
+</body>
+</html>
